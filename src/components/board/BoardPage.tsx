@@ -10,7 +10,7 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { ArrowLeft, BarChart3, Music, Settings2 } from "lucide-react";
+import { ArrowLeft, ChartColumn, Music, Settings2 } from "lucide-react";
 import { getActiveTierList, getSongsForTier, getVisibleSongs } from "../../store/selectors";
 import { useTierBoardStore } from "../../store/useTierBoardStore";
 import { buildCollisionDetection } from "../../utils/collisionDetection";
@@ -38,6 +38,8 @@ export function BoardPage() {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
   // Track the last known "over" container to avoid oscillations
   const lastOverIdRef = useRef<UniqueIdentifier | null>(null);
+  // Track the active container during the drag to prevent React 18 state batching race conditions
+  const activeContainerRef = useRef<string | null>(null);
 
   if (!tierList) {
     return <HomePage />;
@@ -67,8 +69,11 @@ export function BoardPage() {
   }
 
   function handleDragStart(event: DragStartEvent) {
-    setActiveSongId(String(event.active.id));
+    const activeId = String(event.active.id);
+    setActiveSongId(activeId);
     lastOverIdRef.current = null;
+    const song = currentTierList.songs.find((s) => s.id === activeId);
+    activeContainerRef.current = song ? (song.tierId ?? null) : null;
   }
 
   function handleDragOver(event: DragOverEvent) {
@@ -80,20 +85,27 @@ export function BoardPage() {
 
     if (activeId === overId) return;
 
-    const activeContainerId = resolveContainerId(activeId);
+    const activeContainerId = activeContainerRef.current;
     const overContainerId = resolveContainerId(overId);
 
-    // Only move the song between containers during drag-over
-    // so that the SortableContext for the target container
-    // includes the dragged song and can render it properly.
+    // Move the song between containers during drag-over
     if (activeContainerId !== overContainerId) {
       // Prevent rapid oscillation: don't re-move if we just moved here
       if (lastOverIdRef.current === overId) return;
       lastOverIdRef.current = overId;
 
+      activeContainerRef.current = overContainerId;
+
       // Check if we're over a song (insert before it) or a container (append)
       const isOverSong = currentTierList.songs.some((s) => s.id === overId);
       moveSong(activeId, overContainerId, isOverSong ? overId : undefined);
+    } else {
+      // Sorting within the same container: update the position in real time
+      const isOverSong = currentTierList.songs.some((s) => s.id === overId);
+      if (isOverSong) {
+        moveSong(activeId, overContainerId, overId);
+      }
+      lastOverIdRef.current = null;
     }
   }
 
@@ -101,6 +113,7 @@ export function BoardPage() {
     const { active, over } = event;
     setActiveSongId(null);
     lastOverIdRef.current = null;
+    activeContainerRef.current = null;
 
     if (!over) return;
 
@@ -138,7 +151,7 @@ export function BoardPage() {
               Tiers
             </button>
             <button className="ghost-button" onClick={() => setDrawer("stats")} type="button">
-              <BarChart3 size={16} />
+              <ChartColumn size={16} />
               Estadísticas
             </button>
             <div className="song-count">
@@ -176,7 +189,7 @@ export function BoardPage() {
             ))}
           </section>
           <aside className="right-rail">
-            <AllSongsPanel songs={currentTierList.songs} />
+            <AllSongsPanel songs={visibleSongs} />
           </aside>
         </div>
       </main>

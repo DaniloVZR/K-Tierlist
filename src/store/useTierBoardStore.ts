@@ -24,6 +24,8 @@ interface TierBoardState {
   setQuery: (query: string) => void;
   setArtistFilter: (artist: string) => void;
   setTierFilter: (tierId: string) => void;
+  cloneTierList: (tierListId: string) => void;
+  importTierList: (importedData: any) => void;
 }
 
 function normalizeInput(input: SongInput): Omit<Song, "id" | "tierId"> {
@@ -220,6 +222,107 @@ export const useTierBoardStore = create<TierBoardState>()(
       setQuery: (query) => set({ query }),
       setArtistFilter: (artistFilter) => set({ artistFilter }),
       setTierFilter: (tierFilter) => set({ tierFilter }),
+      cloneTierList: (tierListId) =>
+        set((state) => {
+          const original = state.tierLists.find((list) => list.id === tierListId);
+          if (!original) {
+            return {};
+          }
+
+          const newTierListId = createId("list");
+          const tierIdMap = new Map<string, string>();
+
+          const newTiers = original.tiers.map((tier) => {
+            const newId = createId("tier");
+            tierIdMap.set(tier.id, newId);
+            return {
+              ...tier,
+              id: newId,
+            };
+          });
+
+          const newSongs = original.songs.map((song) => {
+            const newId = createId("song");
+            let newTierId: string | null = null;
+            if (song.tierId) {
+              newTierId = tierIdMap.get(song.tierId) ?? null;
+            }
+            return {
+              ...song,
+              id: newId,
+              tierId: newTierId,
+            };
+          });
+
+          const newTierList: TierList = {
+            id: newTierListId,
+            name: `${original.name} (Copia)`,
+            year: original.year,
+            tiers: newTiers,
+            songs: newSongs,
+          };
+
+          return {
+            tierLists: [...state.tierLists, newTierList],
+          };
+        }),
+      importTierList: (importedData) => {
+        if (
+          !importedData ||
+          typeof importedData.name !== "string" ||
+          typeof importedData.year !== "string" ||
+          !Array.isArray(importedData.tiers) ||
+          !Array.isArray(importedData.songs)
+        ) {
+          throw new Error("Formato de JSON inválido");
+        }
+
+        set((state) => {
+          const newTierListId = createId("list");
+          const tierIdMap = new Map<string, string>();
+
+          const newTiers = importedData.tiers.map((tier: any) => {
+            const newId = createId("tier");
+            if (tier.id) {
+              tierIdMap.set(tier.id, newId);
+            }
+            return {
+              id: newId,
+              name: String(tier.name || "Tier"),
+              order: typeof tier.order === "number" ? tier.order : 0,
+              color: String(tier.color || "#64748b"),
+            };
+          });
+
+          const newSongs = importedData.songs.map((song: any) => {
+            const newId = createId("song");
+            let newTierId: string | null = null;
+            if (song.tierId) {
+              newTierId = tierIdMap.get(song.tierId) ?? null;
+            }
+            return {
+              id: newId,
+              title: String(song.title || "Canción"),
+              artist: String(song.artist || "Artista"),
+              featuring: song.featuring ? String(song.featuring) : undefined,
+              album: song.album ? String(song.album) : undefined,
+              tierId: newTierId,
+            };
+          });
+
+          const newTierList: TierList = {
+            id: newTierListId,
+            name: String(importedData.name),
+            year: String(importedData.year),
+            tiers: newTiers,
+            songs: newSongs,
+          };
+
+          return {
+            tierLists: [...state.tierLists, newTierList],
+          };
+        });
+      },
     }),
     {
       name: "tierboard-storage",

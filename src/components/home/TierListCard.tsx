@@ -1,16 +1,23 @@
 import { FormEvent, useState } from "react";
-import { Pencil, Trash2 } from "lucide-react";
+import { Copy, Download, Pencil, Trash2 } from "lucide-react";
 import { useTierBoardStore } from "../../store/useTierBoardStore";
 import type { TierList, TierListInput } from "../../types";
 
 export function TierListCard({ tierList, onOpen }: { tierList: TierList; onOpen: () => void }) {
   const updateTierList = useTierBoardStore((state) => state.updateTierList);
   const deleteTierList = useTierBoardStore((state) => state.deleteTierList);
+  const cloneTierList = useTierBoardStore((state) => state.cloneTierList);
   const [isEditing, setIsEditing] = useState(false);
   const [form, setForm] = useState<TierListInput>({
     name: tierList.name,
     year: tierList.year,
   });
+
+  function handleDelete() {
+    if (window.confirm(`¿Estás seguro de que deseas eliminar la tier list "${tierList.name}"?`)) {
+      deleteTierList(tierList.id);
+    }
+  }
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -50,7 +57,7 @@ export function TierListCard({ tierList, onOpen }: { tierList: TierList; onOpen:
   }
 
   return (
-    <article className="tier-list-card">
+    <article className="tier-list-card clickable" onClick={onOpen}>
       <div>
         <p>{tierList.year}</p>
         <h3>{tierList.name}</h3>
@@ -58,10 +65,7 @@ export function TierListCard({ tierList, onOpen }: { tierList: TierList; onOpen:
           {tierList.tiers.length} tiers · {tierList.songs.length} canciones
         </span>
       </div>
-      <div className="card-actions">
-        <button className="primary-button" onClick={onOpen} type="button">
-          Abrir
-        </button>
+      <div className="card-actions" onClick={(event) => event.stopPropagation()}>
         <button
           aria-label="Editar tier list"
           className="icon-button"
@@ -74,9 +78,25 @@ export function TierListCard({ tierList, onOpen }: { tierList: TierList; onOpen:
           <Pencil size={16} />
         </button>
         <button
+          aria-label="Clonar tier list"
+          className="icon-button"
+          onClick={() => cloneTierList(tierList.id)}
+          type="button"
+        >
+          <Copy size={16} />
+        </button>
+        <button
+          aria-label="Exportar tier list"
+          className="icon-button"
+          onClick={exportToJson}
+          type="button"
+        >
+          <Download size={16} />
+        </button>
+        <button
           aria-label="Eliminar tier list"
           className="icon-button"
-          onClick={() => deleteTierList(tierList.id)}
+          onClick={handleDelete}
           type="button"
         >
           <Trash2 size={16} />
@@ -84,4 +104,14 @@ export function TierListCard({ tierList, onOpen }: { tierList: TierList; onOpen:
       </div>
     </article>
   );
+
+  function exportToJson() {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(tierList, null, 2));
+    const downloadAnchor = document.createElement("a");
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `${tierList.name.replace(/\s+/g, "_")}-${tierList.year}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  }
 }

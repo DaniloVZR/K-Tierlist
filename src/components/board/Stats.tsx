@@ -1,4 +1,4 @@
-import { BarChart3 } from "lucide-react";
+import { ChartColumn } from "lucide-react";
 import { getSongsForTier } from "../../store/selectors";
 import type { Song, Tier } from "../../types";
 
@@ -14,7 +14,7 @@ export function Stats({ songs, tiers }: { songs: Song[]; tiers: Tier[] }) {
   return (
     <section className="stats-panel">
       <h3>
-        <BarChart3 size={18} />
+        <ChartColumn size={18} />
         Estadísticas
       </h3>
       <div className="stat-block">
