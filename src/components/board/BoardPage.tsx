@@ -49,6 +49,18 @@ export function BoardPage() {
   const visibleSongs = getVisibleSongs(currentTierList.songs, query, artistFilter, tierFilter);
   const activeSong = currentTierList.songs.find((song) => song.id === activeSongId);
 
+  // Compute global ranks based on ALL songs (unfiltered) in the tier list
+  const rankedSongs = currentTierList.tiers.flatMap((tier) =>
+    getSongsForTier(currentTierList.songs, tier.id)
+  );
+  const songRanks = new Map<string, number>();
+  rankedSongs.forEach((song, index) => {
+    songRanks.set(song.id, index + 1);
+  });
+
+  const activeSongTier = activeSong ? currentTierList.tiers.find((t) => t.id === activeSong.tierId) : null;
+  const isSpecialActiveSong = activeSongTier?.name === "10";
+
   // All container (tier) IDs used by useDroppable
   const containerIds: UniqueIdentifier[] = [
     "unranked",
@@ -177,6 +189,7 @@ export function BoardPage() {
               songs={getSongsForTier(visibleSongs, null)}
               title="Sin clasificar"
               tone="#111827"
+              songRanks={songRanks}
             />
             {currentTierList.tiers.map((tier) => (
               <TierColumn
@@ -185,6 +198,7 @@ export function BoardPage() {
                 songs={getSongsForTier(visibleSongs, tier.id)}
                 title={tier.name}
                 tone={tier.color}
+                songRanks={songRanks}
               />
             ))}
           </section>
@@ -201,8 +215,8 @@ export function BoardPage() {
       </SideDrawer>
       <DragOverlay>
         {activeSong ? (
-          <article className="song-card overlay">
-            <SongCardView compact song={activeSong} />
+          <article className={["song-card", "overlay", isSpecialActiveSong && "special-tier-card"].filter(Boolean).join(" ")}>
+            <SongCardView compact song={activeSong} rank={songRanks.get(activeSong.id)} />
           </article>
         ) : null}
       </DragOverlay>

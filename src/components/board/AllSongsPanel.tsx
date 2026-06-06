@@ -1,6 +1,8 @@
 import type { Song } from "../../types";
 
 export function AllSongsPanel({ songs }: { songs: Song[] }) {
+  const sortedSongs = [...songs].sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
+
   return (
     <section className="all-songs-panel">
       <div className="panel-title">
@@ -8,11 +10,17 @@ export function AllSongsPanel({ songs }: { songs: Song[] }) {
         <span>{songs.length}</span>
       </div>
       <div className="all-song-list">
-        {songs.length ? (
-          songs.map((song) => (
+        {sortedSongs.length ? (
+          sortedSongs.map((song, index) => (
             <article className="song-list-item" key={song.id}>
-              <strong>{song.title}</strong>
-              <span>{song.artist}</span>
+              <span className="song-list-number">
+                {index + 1}
+              </span>
+              <div className="song-copy">
+                <strong>{song.title}</strong>
+                <span>{song.featuring ? `${song.artist} · ${song.featuring}` : song.artist}</span>
+                {song.album ? <small>{song.album}</small> : null}
+              </div>
             </article>
           ))
         ) : (

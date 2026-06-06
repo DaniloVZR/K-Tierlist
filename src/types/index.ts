@@ -5,6 +5,7 @@ export interface Song {
   featuring?: string;
   album?: string;
   tierId?: string | null;
+  createdAt?: number;
 }
 
 export interface Tier {

@@ -10,6 +10,8 @@ interface TierBoardState {
   query: string;
   artistFilter: string;
   tierFilter: string;
+  theme: "light" | "dark";
+  toggleTheme: () => void;
   createTierList: (input: TierListInput) => string;
   updateTierList: (tierListId: string, input: TierListInput) => void;
   deleteTierList: (tierListId: string) => void;
@@ -45,9 +47,19 @@ function updateActiveList(
     return {};
   }
 
+  const activeList = state.tierLists.find((t) => t.id === state.activeTierListId);
+  if (!activeList) {
+    return {};
+  }
+
+  const updatedList = updater(activeList);
+  if (updatedList === activeList) {
+    return {};
+  }
+
   return {
     tierLists: state.tierLists.map((tierList) =>
-      tierList.id === state.activeTierListId ? updater(tierList) : tierList,
+      tierList.id === state.activeTierListId ? updatedList : tierList,
     ),
   };
 }
@@ -59,6 +71,8 @@ export const useTierBoardStore = create<TierBoardState>()(
       query: "",
       artistFilter: "all",
       tierFilter: "all",
+      theme: "light",
+      toggleTheme: () => set((state) => ({ theme: state.theme === "light" ? "dark" : "light" })),
       createTierList: (input) => {
         const id = createId("list");
         set((state) => ({
@@ -171,6 +185,7 @@ export const useTierBoardStore = create<TierBoardState>()(
                 id: createId("song"),
                 ...normalizeInput(input),
                 tierId: null,
+                createdAt: Date.now(),
               },
             ],
           })),
@@ -194,28 +209,57 @@ export const useTierBoardStore = create<TierBoardState>()(
       moveSong: (songId, targetTierId, beforeSongId) =>
         set((state) =>
           updateActiveList(state, (tierList) => {
-            const movingSong = tierList.songs.find((song) => song.id === songId);
-            if (!movingSong) {
+            const fromIndex = tierList.songs.findIndex((song) => song.id === songId);
+            if (fromIndex === -1) {
               return tierList;
             }
 
+            const movingSong = tierList.songs[fromIndex];
             const remainingSongs = tierList.songs.filter((song) => song.id !== songId);
             const nextSong = { ...movingSong, tierId: targetTierId };
-            const insertIndex = beforeSongId
-              ? remainingSongs.findIndex((song) => song.id === beforeSongId)
-              : -1;
 
-            if (insertIndex === -1) {
-              return { ...tierList, songs: [...remainingSongs, nextSong] };
+            let targetSongs;
+            if (beforeSongId) {
+              const toIndex = tierList.songs.findIndex((song) => song.id === beforeSongId);
+              if (toIndex === -1) {
+                targetSongs = [...remainingSongs, nextSong];
+              } else {
+                const insertIndex = remainingSongs.findIndex((song) => song.id === beforeSongId);
+                const finalInsertIndex = fromIndex < toIndex ? insertIndex + 1 : insertIndex;
+                targetSongs = [
+                  ...remainingSongs.slice(0, finalInsertIndex),
+                  nextSong,
+                  ...remainingSongs.slice(finalInsertIndex),
+                ];
+              }
+            } else {
+              targetSongs = [...remainingSongs, nextSong];
+            }
+
+            // Check if the resulting array would be identical to the current one
+            const currentSongs = tierList.songs;
+            const isIdentical =
+              currentSongs.length === targetSongs.length &&
+              currentSongs.every((song, idx) => {
+                const target = targetSongs[idx];
+                return (
+                  song.id === target.id &&
+                  song.tierId === target.tierId &&
+                  song.title === target.title &&
+                  song.artist === target.artist &&
+                  song.featuring === target.featuring &&
+                  song.album === target.album &&
+                  song.createdAt === target.createdAt
+                );
+              });
+
+            if (isIdentical) {
+              return tierList;
             }
 
             return {
               ...tierList,
-              songs: [
-                ...remainingSongs.slice(0, insertIndex),
-                nextSong,
-                ...remainingSongs.slice(insertIndex),
-              ],
+              songs: targetSongs,
             };
           }),
         ),
@@ -294,7 +338,7 @@ export const useTierBoardStore = create<TierBoardState>()(
             };
           });
 
-          const newSongs = importedData.songs.map((song: any) => {
+          const newSongs = importedData.songs.map((song: any, index: number) => {
             const newId = createId("song");
             let newTierId: string | null = null;
             if (song.tierId) {
@@ -307,6 +351,7 @@ export const useTierBoardStore = create<TierBoardState>()(
               featuring: song.featuring ? String(song.featuring) : undefined,
               album: song.album ? String(song.album) : undefined,
               tierId: newTierId,
+              createdAt: typeof song.createdAt === "number" ? song.createdAt : Date.now() + index,
             };
           });
 
@@ -326,16 +371,31 @@ export const useTierBoardStore = create<TierBoardState>()(
     }),
     {
       name: "tierboard-storage",
-      version: 2,
-      migrate: () => ({
-        ...emptyTierBoard,
-        query: "",
-        artistFilter: "all",
-        tierFilter: "all",
-      }),
+      version: 3,
+      migrate: (persistedState: any, version: number) => {
+        const state = persistedState as any;
+        if (version < 3 && state) {
+          if (!state.theme) {
+            state.theme = "light";
+          }
+          if (Array.isArray(state.tierLists)) {
+            state.tierLists = state.tierLists.map((list: any) => {
+              if (list && Array.isArray(list.songs)) {
+                list.songs = list.songs.map((song: any, index: number) => ({
+                  ...song,
+                  createdAt: song.createdAt ?? (Date.now() - (list.songs.length - index) * 1000),
+                }));
+              }
+              return list;
+            });
+          }
+        }
+        return state;
+      },
       partialize: (state) => ({
         tierLists: state.tierLists,
         activeTierListId: state.activeTierListId,
+        theme: state.theme,
       }),
     },
   ),

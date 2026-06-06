@@ -7,7 +7,15 @@ import type { Song } from "../../types";
 import { SongCardView } from "./SongCardView";
 import { SongForm } from "./SongForm";
 
-export function SortableSongCard({ song }: { song: Song }) {
+export function SortableSongCard({
+  song,
+  rank,
+  isSpecialTier,
+}: {
+  song: Song;
+  rank?: number;
+  isSpecialTier?: boolean;
+}) {
   const deleteSong = useTierBoardStore((state) => state.deleteSong);
   const [isEditing, setIsEditing] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -32,9 +40,17 @@ export function SortableSongCard({ song }: { song: Song }) {
     setIsMenuOpen(true);
   }
 
+  const cardClassName = [
+    "song-card",
+    isDragging && "dragging",
+    isSpecialTier && "special-tier-card",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
     <article
-      className={isDragging ? "song-card dragging" : "song-card"}
+      className={cardClassName}
       onClick={() => setIsMenuOpen(false)}
       onContextMenu={openMenu}
       ref={setNodeRef}
@@ -42,7 +58,7 @@ export function SortableSongCard({ song }: { song: Song }) {
       {...attributes}
       {...listeners}
     >
-      <SongCardView song={song} />
+      <SongCardView song={song} rank={rank} />
       {isMenuOpen ? (
         <div className="context-menu" onPointerDown={(event) => event.stopPropagation()}>
           <button
