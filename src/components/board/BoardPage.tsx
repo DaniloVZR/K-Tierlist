@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useMemo, useCallback } from "react";
 import {
   DndContext,
   DragEndEvent,
@@ -46,31 +46,47 @@ export function BoardPage() {
   }
 
   const currentTierList = tierList;
-  const visibleSongs = getVisibleSongs(currentTierList.songs, query, artistFilter, tierFilter);
-  const activeSong = currentTierList.songs.find((song) => song.id === activeSongId);
+
+  const visibleSongs = useMemo(
+    () => getVisibleSongs(currentTierList.songs, query, artistFilter, tierFilter),
+    [currentTierList.songs, query, artistFilter, tierFilter]
+  );
+
+  const activeSong = useMemo(
+    () => currentTierList.songs.find((song) => song.id === activeSongId),
+    [currentTierList.songs, activeSongId]
+  );
 
   // Compute global ranks based on ALL songs (unfiltered) in the tier list
-  const rankedSongs = currentTierList.tiers.flatMap((tier) =>
-    getSongsForTier(currentTierList.songs, tier.id)
-  );
-  const songRanks = new Map<string, number>();
-  rankedSongs.forEach((song, index) => {
-    songRanks.set(song.id, index + 1);
-  });
+  const songRanks = useMemo(() => {
+    const ranked = currentTierList.tiers.flatMap((tier) =>
+      getSongsForTier(currentTierList.songs, tier.id)
+    );
+    const map = new Map<string, number>();
+    ranked.forEach((song, index) => map.set(song.id, index + 1));
+    return map;
+  }, [currentTierList.songs, currentTierList.tiers]);
 
-  const activeSongTier = activeSong ? currentTierList.tiers.find((t) => t.id === activeSong.tierId) : null;
+  const activeSongTier = useMemo(
+    () => activeSong ? currentTierList.tiers.find((t) => t.id === activeSong.tierId) : null,
+    [activeSong, currentTierList.tiers]
+  );
   const isSpecialActiveSong = activeSongTier?.name === "10";
 
-  // All container (tier) IDs used by useDroppable
-  const containerIds: UniqueIdentifier[] = [
-    "unranked",
-    ...currentTierList.tiers.map((tier) => tier.id),
-  ];
+  // All container (tier) IDs used by useDroppable — memoized so the reference
+  // stays stable across renders and doesn't trigger DndContext's internal effects.
+  const containerIds = useMemo<UniqueIdentifier[]>(
+    () => ["unranked", ...currentTierList.tiers.map((tier) => tier.id)],
+    [currentTierList.tiers]
+  );
 
-  const collisionDetection = buildCollisionDetection(containerIds);
+  const collisionDetection = useMemo(
+    () => buildCollisionDetection(containerIds),
+    [containerIds]
+  );
 
   /** Resolve which container (tier id or null for unranked) a given over-id belongs to */
-  function resolveContainerId(overId: string): string | null {
+  const resolveContainerId = useCallback((overId: string): string | null => {
     if (overId === "unranked") return null;
     // It's a tier id used directly as a container
     if (currentTierList.tiers.some((t) => t.id === overId)) return overId;
@@ -78,17 +94,17 @@ export function BoardPage() {
     const overSong = currentTierList.songs.find((s) => s.id === overId);
     if (overSong) return overSong.tierId ?? null;
     return null;
-  }
+  }, [currentTierList.tiers, currentTierList.songs]);
 
-  function handleDragStart(event: DragStartEvent) {
+  const handleDragStart = useCallback((event: DragStartEvent) => {
     const activeId = String(event.active.id);
     setActiveSongId(activeId);
     lastOverIdRef.current = null;
     const song = currentTierList.songs.find((s) => s.id === activeId);
     activeContainerRef.current = song ? (song.tierId ?? null) : null;
-  }
+  }, [currentTierList.songs]);
 
-  function handleDragOver(event: DragOverEvent) {
+  const handleDragOver = useCallback((event: DragOverEvent) => {
     const { active, over } = event;
     if (!over) return;
 
@@ -100,7 +116,9 @@ export function BoardPage() {
     const activeContainerId = activeContainerRef.current;
     const overContainerId = resolveContainerId(overId);
 
-    // Move the song between containers during drag-over
+    // Only update state when crossing container boundaries.
+    // Same-container reordering is handled visually by @dnd-kit/sortable
+    // and committed once on handleDragEnd to avoid infinite update loops.
     if (activeContainerId !== overContainerId) {
       // Prevent rapid oscillation: don't re-move if we just moved here
       if (lastOverIdRef.current === overId) return;
@@ -111,17 +129,10 @@ export function BoardPage() {
       // Check if we're over a song (insert before it) or a container (append)
       const isOverSong = currentTierList.songs.some((s) => s.id === overId);
       moveSong(activeId, overContainerId, isOverSong ? overId : undefined);
-    } else {
-      // Sorting within the same container: update the position in real time
-      const isOverSong = currentTierList.songs.some((s) => s.id === overId);
-      if (isOverSong) {
-        moveSong(activeId, overContainerId, overId);
-      }
-      lastOverIdRef.current = null;
     }
-  }
+  }, [resolveContainerId, currentTierList.songs, moveSong]);
 
-  function handleDragEnd(event: DragEndEvent) {
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     setActiveSongId(null);
     lastOverIdRef.current = null;
@@ -140,7 +151,7 @@ export function BoardPage() {
     // Final placement: put the song in the resolved container,
     // optionally before the hovered song for ordering
     moveSong(activeId, overContainerId, isOverSong ? overId : undefined);
-  }
+  }, [resolveContainerId, currentTierList.songs, moveSong]);
 
   return (
     <DndContext

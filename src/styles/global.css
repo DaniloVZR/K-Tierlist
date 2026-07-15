@@ -598,6 +598,8 @@ button {
 }
 
 .all-songs-panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   max-height: calc(100vh - 128px);
   overflow: hidden;
 }
@@ -633,17 +635,14 @@ button {
 
 .all-song-list {
   display: grid;
-  overflow: auto;
+  gap: 0;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .tier-editor-list {
   display: grid;
   gap: 8px;
-}
-
-.all-song-list {
-  gap: 0;
-  padding-right: 4px;
 }
 
 .tier-editor-row {
@@ -674,7 +673,6 @@ button {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 42px;
   padding: 8px 0;
 }
 
