@@ -28,6 +28,7 @@ interface TierBoardState {
   setTierFilter: (tierId: string) => void;
   cloneTierList: (tierListId: string) => void;
   importTierList: (importedData: any) => void;
+  importSongsFromSpotify: (name: string, year: string, songs: import('../types').SongInput[]) => void;
 }
 
 function normalizeInput(input: SongInput): Omit<Song, "id" | "tierId"> {
@@ -365,6 +366,33 @@ export const useTierBoardStore = create<TierBoardState>()(
 
           return {
             tierLists: [...state.tierLists, newTierList],
+          };
+        });
+      },
+      importSongsFromSpotify: (name, year, songs) => {
+        set((state) => {
+          const newTierListId = createId("list");
+          const newTierList: TierList = {
+            id: newTierListId,
+            name: name.trim() || "Playlist de Spotify",
+            year: year.trim(),
+            tiers: [],
+            songs: songs.map((input, index) => ({
+              id: createId("song"),
+              title: input.title.trim(),
+              artist: input.artist.trim(),
+              featuring: input.featuring?.trim() || undefined,
+              album: input.album?.trim() || undefined,
+              tierId: null,
+              createdAt: Date.now() + index,
+            })),
+          };
+          return {
+            tierLists: [...state.tierLists, newTierList],
+            activeTierListId: newTierListId,
+            query: "",
+            artistFilter: "all",
+            tierFilter: "all",
           };
         });
       },
