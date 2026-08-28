@@ -1,4 +1,4 @@
-import { useRef, useState, useMemo, useCallback } from "react";
+import { FormEvent, useRef, useState, useMemo, useCallback } from "react";
 import {
   DndContext,
   DragEndEvent,
@@ -10,7 +10,7 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { ArrowLeft, ChartColumn, Music, Settings2 } from "lucide-react";
+import { ArrowLeft, ChartColumn, Copy, Download, Music, Pencil, Settings2, Trash2, X } from "lucide-react";
 import { getActiveTierList, getSongsForTier, getVisibleSongs } from "../../store/selectors";
 import { useTierBoardStore } from "../../store/useTierBoardStore";
 import { buildCollisionDetection } from "../../utils/collisionDetection";
@@ -23,7 +23,7 @@ import { SongForm } from "./SongForm";
 import { Stats } from "./Stats";
 import { TierColumn } from "./TierColumn";
 import { TierManager } from "./TierManager";
-import type { Song, Tier } from "../../types";
+import type { Song, Tier, TierListInput } from "../../types";
 
 export function BoardPage() {
   const tierLists = useTierBoardStore((state) => state.tierLists);
@@ -33,15 +33,19 @@ export function BoardPage() {
   const tierFilter = useTierBoardStore((state) => state.tierFilter);
   const moveSong = useTierBoardStore((state) => state.moveSong);
   const selectTierList = useTierBoardStore((state) => state.selectTierList);
+  const updateTierList = useTierBoardStore((state) => state.updateTierList);
+  const deleteTierList = useTierBoardStore((state) => state.deleteTierList);
+  const cloneTierList = useTierBoardStore((state) => state.cloneTierList);
+
   const [activeSongId, setActiveSongId] = useState<string | null>(null);
   const [drawer, setDrawer] = useState<"tiers" | "stats" | null>(null);
+  const [isEditingMeta, setIsEditingMeta] = useState(false);
+  const [editForm, setEditForm] = useState<TierListInput>({ name: "", year: "" });
+
   const tierList = getActiveTierList(tierLists, activeTierListId);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
   // ── Refs that always hold the latest data ─────────────────────────────────
-  // Drag callbacks are created ONCE (deps=[]) and read these refs so they
-  // never need to be recreated, preventing DndContext from seeing new prop
-  // references on every state change.
   const songsRef = useRef<Song[]>([]);
   const tiersRef = useRef<Tier[]>([]);
   const moveSongRef = useRef(moveSong);
@@ -110,16 +114,6 @@ export function BoardPage() {
   }, []);
 
   // ── Drag handlers — created ONCE, zero store calls during drag ────────────
-  //
-  // KEY FIX: calling moveSong() inside onDragOver causes @dnd-kit to remount
-  // SortableSongCards between SortableContexts while the drag is still active.
-  // useSortable's internal useLayoutEffect then calls measureRect → setState
-  // → re-render → measureRect → infinite loop, crashing React.
-  //
-  // Solution: NEVER update the store during drag. Only track the intended
-  // target via refs. The DragOverlay provides all visual feedback.
-  // One single moveSong() call fires when the user releases (onDragEnd).
-
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const activeId = String(event.active.id);
     setActiveSongId(activeId);
@@ -136,9 +130,6 @@ export function BoardPage() {
 
     if (activeId === overId) return;
 
-    // Only track the target — NO store update, NO setState.
-    // Moving the song between SortableContexts during a live drag causes
-    // @dnd-kit's measureRect useLayoutEffect to loop infinitely.
     overContainerRef.current = resolveContainerId(overId);
 
     const isOverSong = songsRef.current.some((s) => s.id === overId);
@@ -161,14 +152,45 @@ export function BoardPage() {
 
     if (activeId === overId) return;
 
-    // Resolve final container from the over element (most reliable on drop)
     const finalContainer = resolveContainerId(overId);
     const isOverSong = songsRef.current.some((s) => s.id === overId);
     const beforeId = isOverSong ? overId : (targetSongId ?? undefined);
 
-    // Single, clean store update — drag is fully over, no remounting issues
     moveSongRef.current(activeId, finalContainer ?? targetContainer, beforeId);
   }, [resolveContainerId]);
+
+  // ── Tier list meta actions ────────────────────────────────────────────────
+  function openEditMeta() {
+    setEditForm({ name: currentTierList.name, year: currentTierList.year });
+    setIsEditingMeta(true);
+  }
+
+  function submitEditMeta(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    updateTierList(currentTierList.id, editForm);
+    setIsEditingMeta(false);
+  }
+
+  function handleDeleteTierList() {
+    if (window.confirm(`¿Estás seguro de que deseas eliminar la tier list "${currentTierList.name}"?`)) {
+      selectTierList(null);
+      deleteTierList(currentTierList.id);
+    }
+  }
+
+  function handleClone() {
+    cloneTierList(currentTierList.id);
+  }
+
+  function exportToJson() {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(currentTierList, null, 2));
+    const downloadAnchor = document.createElement("a");
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `${currentTierList.name.replace(/\s+/g, "_")}-${currentTierList.year}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  }
 
   return (
     <DndContext
@@ -186,6 +208,46 @@ export function BoardPage() {
             <span>{currentTierList.year}</span>
           </div>
           <div className="heading-actions">
+            {/* Tier list meta actions */}
+            <button
+              aria-label="Editar tier list"
+              className="icon-button"
+              data-tooltip="Editar"
+              onClick={openEditMeta}
+              type="button"
+            >
+              <Pencil size={16} />
+            </button>
+            <button
+              aria-label="Clonar tier list"
+              className="icon-button"
+              data-tooltip="Clonar"
+              onClick={handleClone}
+              type="button"
+            >
+              <Copy size={16} />
+            </button>
+            <button
+              aria-label="Exportar JSON"
+              className="icon-button"
+              data-tooltip="Exportar JSON"
+              onClick={exportToJson}
+              type="button"
+            >
+              <Download size={16} />
+            </button>
+            <button
+              aria-label="Eliminar tier list"
+              className="icon-button icon-button--danger"
+              data-tooltip="Eliminar"
+              onClick={handleDeleteTierList}
+              type="button"
+            >
+              <Trash2 size={16} />
+            </button>
+
+            <div className="heading-divider" />
+
             <button className="ghost-button" onClick={() => setDrawer("tiers")} type="button">
               <Settings2 size={16} />
               Tiers
@@ -235,6 +297,52 @@ export function BoardPage() {
           </aside>
         </div>
       </main>
+
+      {/* Edit tier list meta modal */}
+      {isEditingMeta && (
+        <>
+          <div className="drawer-backdrop" onClick={() => setIsEditingMeta(false)} />
+          <div className="tierlist-edit-modal">
+            <div className="tierlist-edit-modal-header">
+              <h3>Editar tier list</h3>
+              <button
+                className="icon-button"
+                aria-label="Cerrar"
+                onClick={() => setIsEditingMeta(false)}
+                type="button"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <form onSubmit={submitEditMeta} className="tier-list-edit-form">
+              <label>
+                Nombre
+                <input
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  autoFocus
+                />
+              </label>
+              <label>
+                Año
+                <input
+                  value={editForm.year}
+                  onChange={(e) => setEditForm({ ...editForm, year: e.target.value })}
+                />
+              </label>
+              <div className="card-actions">
+                <button className="primary-button" type="submit">
+                  Guardar
+                </button>
+                <button className="ghost-button" onClick={() => setIsEditingMeta(false)} type="button">
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        </>
+      )}
+
       <SideDrawer isOpen={drawer === "tiers"} onClose={() => setDrawer(null)} title="Configurar tiers">
         <TierManager tiers={currentTierList.tiers} />
       </SideDrawer>

@@ -69,6 +69,7 @@ export function TierListCard({ tierList, onOpen }: { tierList: TierList; onOpen:
         <button
           aria-label="Editar tier list"
           className="icon-button"
+          data-tooltip="Editar"
           onClick={() => {
             setForm({ name: tierList.name, year: tierList.year });
             setIsEditing(true);
@@ -80,6 +81,7 @@ export function TierListCard({ tierList, onOpen }: { tierList: TierList; onOpen:
         <button
           aria-label="Clonar tier list"
           className="icon-button"
+          data-tooltip="Clonar"
           onClick={() => cloneTierList(tierList.id)}
           type="button"
         >
@@ -88,6 +90,7 @@ export function TierListCard({ tierList, onOpen }: { tierList: TierList; onOpen:
         <button
           aria-label="Exportar tier list"
           className="icon-button"
+          data-tooltip="Exportar JSON"
           onClick={exportToJson}
           type="button"
         >
@@ -96,6 +99,7 @@ export function TierListCard({ tierList, onOpen }: { tierList: TierList; onOpen:
         <button
           aria-label="Eliminar tier list"
           className="icon-button"
+          data-tooltip="Eliminar"
           onClick={handleDelete}
           type="button"
         >

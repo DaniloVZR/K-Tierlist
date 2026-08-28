@@ -1,4 +1,4 @@
-import { MouseEvent, useState } from "react";
+import { MouseEvent, useEffect, useRef, useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Pencil, Trash2 } from "lucide-react";
@@ -19,6 +19,7 @@ export function SortableSongCard({
   const deleteSong = useTierBoardStore((state) => state.deleteSong);
   const [isEditing, setIsEditing] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: song.id,
   });
@@ -27,10 +28,31 @@ export function SortableSongCard({
     transition,
   };
 
+  // Close menu when clicking outside
+  useEffect(() => {
+    if (!isMenuOpen) return;
+
+    function handleClickOutside(event: MouseEvent | PointerEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", handleClickOutside as any);
+    return () => document.removeEventListener("pointerdown", handleClickOutside as any);
+  }, [isMenuOpen]);
+
   if (isEditing) {
     return (
       <div className="song-card editing">
         <SongForm editingSong={song} onDone={() => setIsEditing(false)} />
+        <button
+          className="ghost-button song-edit-cancel"
+          onClick={() => setIsEditing(false)}
+          type="button"
+        >
+          Cancelar
+        </button>
       </div>
     );
   }
@@ -38,6 +60,13 @@ export function SortableSongCard({
   function openMenu(event: MouseEvent<HTMLElement>) {
     event.preventDefault();
     setIsMenuOpen(true);
+  }
+
+  function handleDelete() {
+    setIsMenuOpen(false);
+    if (window.confirm(`¿Estás seguro de que deseas eliminar "${song.title}"?`)) {
+      deleteSong(song.id);
+    }
   }
 
   const cardClassName = [
@@ -51,7 +80,6 @@ export function SortableSongCard({
   return (
     <article
       className={cardClassName}
-      onClick={() => setIsMenuOpen(false)}
       onContextMenu={openMenu}
       ref={setNodeRef}
       style={style}
@@ -60,7 +88,15 @@ export function SortableSongCard({
     >
       <SongCardView song={song} rank={rank} />
       {isMenuOpen ? (
-        <div className="context-menu" onPointerDown={(event) => event.stopPropagation()}>
+        <div className="context-menu" ref={menuRef} onPointerDown={(event) => event.stopPropagation()}>
+          <button
+            className="context-menu-close"
+            aria-label="Cerrar menú"
+            onClick={() => setIsMenuOpen(false)}
+            type="button"
+          >
+            ✕
+          </button>
           <button
             onClick={() => {
               setIsMenuOpen(false);
@@ -71,13 +107,7 @@ export function SortableSongCard({
             <Pencil size={15} />
             Editar
           </button>
-          <button
-            onClick={() => {
-              setIsMenuOpen(false);
-              deleteSong(song.id);
-            }}
-            type="button"
-          >
+          <button onClick={handleDelete} type="button">
             <Trash2 size={15} />
             Eliminar
           </button>

@@ -60,3 +60,5 @@ ios/build/
 *.key
 *.p12
 *.jks
+.vercel
+.env*

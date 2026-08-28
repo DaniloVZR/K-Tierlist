@@ -142,6 +142,12 @@ button {
   gap: 10px;
 }
 
+.heading-divider {
+  background: var(--border-color);
+  height: 24px;
+  width: 1px;
+}
+
 .song-count {
   align-items: center;
   background: var(--bg-song-count);
@@ -274,13 +280,56 @@ button {
 .icon-button {
   height: 40px;
   padding: 0;
+  position: relative;
   width: 40px;
+}
+
+/* Tooltip via data-tooltip */
+.icon-button[data-tooltip]::after {
+  background: #1e293b;
+  border-radius: 5px;
+  bottom: calc(100% + 7px);
+  color: #f1f5f9;
+  content: attr(data-tooltip);
+  font-size: 11px;
+  font-weight: 600;
+  left: 50%;
+  opacity: 0;
+  padding: 4px 8px;
+  pointer-events: none;
+  position: absolute;
+  transform: translateX(-50%) translateY(4px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  white-space: nowrap;
+  z-index: 100;
+}
+
+.icon-button[data-tooltip]:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+:root.dark .icon-button[data-tooltip]::after {
+  background: #0f172a;
+  border: 1px solid #334155;
 }
 
 .icon-button.strong {
   background: #2563eb;
   border-color: #2563eb;
   color: #ffffff;
+}
+
+.icon-button--danger:hover {
+  background: #fee2e2 !important;
+  border-color: #fca5a5 !important;
+  color: #dc2626 !important;
+}
+
+:root.dark .icon-button--danger:hover {
+  background: rgba(220, 38, 38, 0.18) !important;
+  border-color: #ef4444 !important;
+  color: #f87171 !important;
 }
 
 .primary-button:disabled,
@@ -491,7 +540,14 @@ button {
   grid-template-columns: repeat(4, minmax(110px, 1fr)) auto;
 }
 
-.context-menu button {
+.song-edit-cancel {
+  margin-top: 8px;
+  min-height: 34px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+.context-menu button:not(.context-menu-close) {
   align-items: center;
   background: var(--bg-panel);
   border: 0;
@@ -505,7 +561,7 @@ button {
   width: 100%;
 }
 
-.context-menu button:hover,
+.context-menu button:not(.context-menu-close):hover,
 .ghost-button:hover,
 .icon-button:hover {
   color: var(--color-button-hover);
@@ -513,18 +569,69 @@ button {
 }
 
 .context-menu {
+  animation: context-menu-in 0.14s ease;
   background: var(--bg-panel);
   border: 1px solid var(--border-color-card);
   border-radius: 8px;
   box-shadow: var(--shadow-context);
   display: grid;
   min-width: 140px;
-  overflow: hidden;
+  overflow: visible;
   padding: 4px;
   position: absolute;
   right: 10px;
   top: 10px;
   z-index: 20;
+}
+
+@keyframes context-menu-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Red circle X close button — floats outside top-right corner of context menu */
+.context-menu-close {
+  align-items: center;
+  background: #dc2626;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 900;
+  height: 26px;
+  justify-content: center;
+  line-height: 26px;
+  min-height: unset;
+  padding: 0;
+  position: absolute;
+  right: -12px;
+  top: -12px;
+  transition: background 0.15s ease, transform 0.12s ease;
+  width: 26px;
+  z-index: 25;
+}
+
+.context-menu-close:hover {
+  background: #b91c1c;
+  transform: scale(1.15);
+}
+
+:root.dark .context-menu-close {
+  border-color: #1e293b;
+}
+
+:root.dark .context-menu-close:hover {
+  background: #991b1b;
 }
 
 .song-copy {
@@ -1038,6 +1145,50 @@ button {
 
   .tier-dropzone {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────────────────
+   Tier List Edit Modal (dentro de BoardPage)
+   ────────────────────────────────────────────────────────────────────────── */
+
+.tierlist-edit-modal {
+  animation: modal-in 0.18s ease;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.2);
+  left: 50%;
+  max-width: 460px;
+  padding: 22px;
+  position: fixed;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: calc(100vw - 32px);
+  z-index: 60;
+}
+
+.tierlist-edit-modal-header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.tierlist-edit-modal-header h3 {
+  font-size: 17px;
+  font-weight: 800;
+  margin: 0;
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -48%) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
   }
 }
 
