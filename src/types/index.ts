@@ -19,6 +19,7 @@ export interface TierList {
   id: string;
   name: string;
   year: string;
+  coverImage?: string;
   tiers: Tier[];
   songs: Song[];
 }

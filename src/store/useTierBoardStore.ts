@@ -14,6 +14,7 @@ interface TierBoardState {
   toggleTheme: () => void;
   createTierList: (input: TierListInput) => string;
   updateTierList: (tierListId: string, input: TierListInput) => void;
+  updateTierListCover: (tierListId: string, coverImage: string | null) => void;
   deleteTierList: (tierListId: string) => void;
   selectTierList: (tierListId: string | null) => void;
   addTier: (name: string) => void;
@@ -72,7 +73,7 @@ export const useTierBoardStore = create<TierBoardState>()(
       query: "",
       artistFilter: "all",
       tierFilter: "all",
-      theme: "light",
+      theme: "dark",
       toggleTheme: () => set((state) => ({ theme: state.theme === "light" ? "dark" : "light" })),
       createTierList: (input) => {
         const id = createId("list");
@@ -103,6 +104,14 @@ export const useTierBoardStore = create<TierBoardState>()(
                   name: input.name.trim() || tierList.name,
                   year: input.year.trim() || tierList.year,
                 }
+              : tierList,
+          ),
+        })),
+      updateTierListCover: (tierListId, coverImage) =>
+        set((state) => ({
+          tierLists: state.tierLists.map((tierList) =>
+            tierList.id === tierListId
+              ? { ...tierList, coverImage: coverImage ?? undefined }
               : tierList,
           ),
         })),

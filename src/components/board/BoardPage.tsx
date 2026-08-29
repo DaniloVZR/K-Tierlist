@@ -34,6 +34,7 @@ export function BoardPage() {
   const moveSong = useTierBoardStore((state) => state.moveSong);
   const selectTierList = useTierBoardStore((state) => state.selectTierList);
   const updateTierList = useTierBoardStore((state) => state.updateTierList);
+  const updateTierListCover = useTierBoardStore((state) => state.updateTierListCover);
   const deleteTierList = useTierBoardStore((state) => state.deleteTierList);
   const cloneTierList = useTierBoardStore((state) => state.cloneTierList);
 
@@ -41,6 +42,7 @@ export function BoardPage() {
   const [drawer, setDrawer] = useState<"tiers" | "stats" | null>(null);
   const [isEditingMeta, setIsEditingMeta] = useState(false);
   const [editForm, setEditForm] = useState<TierListInput>({ name: "", year: "" });
+  const [editCoverUrl, setEditCoverUrl] = useState("");
 
   const tierList = getActiveTierList(tierLists, activeTierListId);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
@@ -162,12 +164,14 @@ export function BoardPage() {
   // ── Tier list meta actions ────────────────────────────────────────────────
   function openEditMeta() {
     setEditForm({ name: currentTierList.name, year: currentTierList.year });
+    setEditCoverUrl(currentTierList.coverImage ?? "");
     setIsEditingMeta(true);
   }
 
   function submitEditMeta(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     updateTierList(currentTierList.id, editForm);
+    updateTierListCover(currentTierList.id, editCoverUrl.trim() || null);
     setIsEditingMeta(false);
   }
 
@@ -201,11 +205,20 @@ export function BoardPage() {
       sensors={sensors}
     >
       <main className="main-panel">
-        <section className="board-heading">
-          <div>
-            <p className="eyebrow">Tier list seleccionada</p>
-            <h2>{currentTierList.name}</h2>
-            <span>{currentTierList.year}</span>
+        {/* Cover image banner */}
+        {currentTierList.coverImage && (
+          <div
+            className="board-cover-banner"
+            style={{ backgroundImage: `url(${currentTierList.coverImage})` }}
+            aria-hidden="true"
+          />
+        )}
+
+        <section className={`board-heading${currentTierList.coverImage ? " has-cover" : ""}`}>
+          <div className="board-heading-info">
+            <p className="board-eyebrow">Tier list</p>
+            <h2 className="board-title">{currentTierList.name}</h2>
+            <span className="board-year">{currentTierList.year}</span>
           </div>
           <div className="heading-actions">
             {/* Tier list meta actions */}
@@ -330,6 +343,20 @@ export function BoardPage() {
                   onChange={(e) => setEditForm({ ...editForm, year: e.target.value })}
                 />
               </label>
+              <label>
+                Imagen de portada (URL)
+                <input
+                  type="url"
+                  value={editCoverUrl}
+                  placeholder="https://..."
+                  onChange={(e) => setEditCoverUrl(e.target.value)}
+                />
+              </label>
+              {editCoverUrl && (
+                <div className="cover-preview">
+                  <img src={editCoverUrl} alt="Vista previa de portada" />
+                </div>
+              )}
               <div className="card-actions">
                 <button className="primary-button" type="submit">
                   Guardar

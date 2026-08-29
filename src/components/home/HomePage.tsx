@@ -16,6 +16,11 @@ export function HomePage() {
     return yearCompare || a.name.localeCompare(b.name);
   });
 
+  const totalSongs = tierLists.reduce((sum, list) => sum + list.songs.length, 0);
+  const newestList = tierLists.length
+    ? tierLists.reduce((a, b) => (a.year.localeCompare(b.year, undefined, { numeric: true }) >= 0 ? a : b))
+    : null;
+
   function handleImport(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -35,58 +40,87 @@ export function HomePage() {
 
   return (
     <main className="home-page">
-      <section className="home-heading">
-        <div>
-          <p className="eyebrow">Menú principal</p>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <h2>Mis tier lists</h2>
-            <input
-              type="file"
-              accept=".json"
-              style={{ display: "none" }}
-              id="import-tierlist-json"
-              onChange={handleImport}
-            />
-            <label
-              htmlFor="import-tierlist-json"
-              className="ghost-button"
-              style={{ cursor: "pointer", minHeight: "34px", padding: "0 10px", fontSize: "13px", gap: "6px" }}
-            >
-              <Upload size={14} />
-              Importar JSON
-            </label>
-            <button
-              id="open-spotify-import"
-              type="button"
-              className="ghost-button spotify-import-trigger"
-              style={{ minHeight: "34px", padding: "0 12px", fontSize: "13px", gap: "7px" }}
-              onClick={() => setSpotifyModalOpen(true)}
-            >
-              <SpotifyIconSmall />
-              Importar de Spotify
-            </button>
+      <div className="home-inner">
+        <section className="hero">
+          <div className="hero-copy">
+            <p className="hero-eyebrow">Tus ranking de K-pop, por años</p>
+            <h2 className="hero-title">
+              K-<span className="hero-pop">TIER</span>LIST
+            </h2>
+            <p className="hero-sub">
+              Arma tu lista, tira canciones a sus tiers y descubre quién manda cada año.
+            </p>
           </div>
-        </div>
-        <TierListForm />
-      </section>
+          <dl className="hero-stats">
+            <div className="hero-stat">
+              <dt>Tierlists</dt>
+              <dd>{tierLists.length}</dd>
+            </div>
+            <div className="hero-stat">
+              <dt>Canciones</dt>
+              <dd>{totalSongs}</dd>
+            </div>
+            {newestList ? (
+              <div className="hero-stat">
+                <dt>Último</dt>
+                <dd className="hero-stat-year">{newestList.year}</dd>
+              </div>
+            ) : null}
+          </dl>
+        </section>
 
-      <section className="tier-list-grid" aria-label="Tier lists creadas">
-        {sortedTierLists.length ? (
-          sortedTierLists.map((tierList) => (
-            <TierListCard
-              key={tierList.id}
-              onOpen={() => selectTierList(tierList.id)}
-              tierList={tierList}
-            />
-          ))
-        ) : (
-          <div className="empty-state">
-            <ListMusic size={32} />
-            <h3>Aún no hay tier lists</h3>
-            <p>Crea la primera desde el formulario superior y luego configura sus tiers.</p>
+        <section className="home-toolbar" aria-label="Acciones">
+          <div className="toolbar-heading">
+            <h2>Mis tier lists</h2>
+            <div className="toolbar-imports">
+              <input
+                type="file"
+                accept=".json"
+                style={{ display: "none" }}
+                id="import-tierlist-json"
+                onChange={handleImport}
+              />
+              <label
+                htmlFor="import-tierlist-json"
+                className="ghost-button"
+                style={{ cursor: "pointer", minHeight: "34px", padding: "0 10px", fontSize: "13px", gap: "6px" }}
+              >
+                <Upload size={14} />
+                Importar JSON
+              </label>
+              <button
+                id="open-spotify-import"
+                type="button"
+                className="ghost-button spotify-import-trigger"
+                style={{ minHeight: "34px", padding: "0 12px", fontSize: "13px", gap: "7px" }}
+                onClick={() => setSpotifyModalOpen(true)}
+              >
+                <SpotifyIconSmall />
+                Importar de Spotify
+              </button>
+            </div>
           </div>
-        )}
-      </section>
+          <TierListForm />
+        </section>
+
+        <section className="tier-list-grid" aria-label="Tier lists creadas">
+          {sortedTierLists.length ? (
+            sortedTierLists.map((tierList) => (
+              <TierListCard
+                key={tierList.id}
+                onOpen={() => selectTierList(tierList.id)}
+                tierList={tierList}
+              />
+            ))
+          ) : (
+            <div className="empty-state">
+              <ListMusic size={34} strokeWidth={1.6} />
+              <h3>Tu primer ranking te espera</h3>
+              <p>Dale un nombre y un año a tu primera tier list en el formulario de arriba.</p>
+            </div>
+          )}
+        </section>
+      </div>
 
       <SpotifyImportModal
         isOpen={spotifyModalOpen}
