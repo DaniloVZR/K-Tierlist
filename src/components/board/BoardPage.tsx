@@ -205,20 +205,21 @@ export function BoardPage() {
       sensors={sensors}
     >
       <main className="main-panel">
-        {/* Cover image banner */}
-        {currentTierList.coverImage && (
-          <div
-            className="board-cover-banner"
-            style={{ backgroundImage: `url(${currentTierList.coverImage})` }}
-            aria-hidden="true"
-          />
-        )}
-
-        <section className={`board-heading${currentTierList.coverImage ? " has-cover" : ""}`}>
+        <section className="board-heading">
           <div className="board-heading-info">
-            <p className="board-eyebrow">Tier list</p>
-            <h2 className="board-title">{currentTierList.name}</h2>
-            <span className="board-year">{currentTierList.year}</span>
+            {currentTierList.coverImage && (
+              <img
+                className="board-cover-thumb"
+                src={currentTierList.coverImage}
+                alt=""
+                aria-hidden="true"
+              />
+            )}
+            <div className="board-heading-text">
+              <p className="board-eyebrow">Tier list</p>
+              <h2 className="board-title">{currentTierList.name}</h2>
+              <span className="board-year">{currentTierList.year}</span>
+            </div>
           </div>
           <div className="heading-actions">
             {/* Tier list meta actions */}
